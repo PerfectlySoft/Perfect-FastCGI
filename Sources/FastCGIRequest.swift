@@ -20,14 +20,14 @@
 import PerfectLib
 import PerfectNet
 
-class FastCGIRequest: HTTPRequest {
+final class FastCGIRequest: HTTPRequest {
     
     var requestId: UInt16 = 0
     var lastRecordType: UInt8 = 0
     
     var method = HTTPMethod.get
     var path = ""
-    var queryParams = [(String, String)]()
+    var queryString = ""
     var protocolVersion = (1, 0)
     var remoteAddress = (host: "", port: 0 as UInt16)
     var serverAddress = (host: "", port: 0 as UInt16)
@@ -39,6 +39,10 @@ class FastCGIRequest: HTTPRequest {
     var workingBuffer = [UInt8]()
     
     private var headerStore = Dictionary<HTTPRequestHeader.Name, String>()
+    
+    lazy var queryParams: [(String, String)] = {
+        return self.deFormURLEncoded(string: self.queryString)
+    }()
     
     var headers: AnyIterator<(HTTPRequestHeader.Name, String)> {
         var g = self.headerStore.makeIterator()
@@ -107,14 +111,14 @@ class FastCGIRequest: HTTPRequest {
     }
     
     func addHeader(_ named: HTTPRequestHeader.Name, value: String) {
-        if let existing = headerStore[named] {
-            if existing == "cookie" {
-                self.headerStore[named] = existing + "; " + value
-            } else {
-                self.headerStore[named] = existing + ", " + value
-            }
-        } else {
+        guard let existing = headerStore[named] else {
             self.headerStore[named] = value
+            return
+        }
+        if named == .cookie {
+            self.headerStore[named] = existing + "; " + value
+        } else {
+            self.headerStore[named] = existing + ", " + value
         }
     }
     
@@ -125,6 +129,40 @@ class FastCGIRequest: HTTPRequest {
     func setHeader(named: String, value: String) {
         let lowered = named.lowercased()
         setHeader(HTTPRequestHeader.Name.fromStandard(name: lowered), value: value)
+    }
+    
+    private func addParam(name: String, value: String) {
+        let httpChars = "HTTP_".characters
+        switch name {
+        case "REQUEST_METHOD":
+            method = HTTPMethod.from(string: value)
+        case "SERVER_PROTOCOL":
+            if value == "HTTP/1.1" {
+                protocolVersion = (1, 1)
+            }
+        case "DOCUMENT_ROOT":
+            documentRoot = value
+        case "SERVER_NAME":
+            serverName = value
+        case "SERVER_ADDR":
+            serverAddress.host = value
+        case "SERVER_PORT":
+            serverAddress.port = UInt16(value) ?? 0
+        case "REMOTE_ADDR":
+            remoteAddress.host = value
+        case "REMOTE_PORT":
+            remoteAddress.port = UInt16(value) ?? 0
+        case "QUERY_STRING":
+            queryString = value
+        case "REQUEST_URI":
+            path = value
+        default:
+            let nameChars = name.characters
+            if nameChars.starts(with: httpChars) {
+                let newName = String(nameChars[nameChars.index(nameChars.startIndex, offsetBy: httpChars.count)..<nameChars.endIndex]).lowercased().stringByReplacing(string: "_", withString: "-")
+                addHeader(HTTPRequestHeader.Name.fromStandard(name: newName), value: value)
+            } // else unknown or unwanted header - ignored
+        }
     }
     
     func readRequest(callback: StatusCallback) {
@@ -142,8 +180,7 @@ class FastCGIRequest: HTTPRequest {
             [weak self]
             b in
             guard let recBytes = b else {
-                continuation(nil)
-                return
+                return continuation(nil)
             }
             let record = FastCGIRecord()
             record.version = recBytes[0]
@@ -157,50 +194,50 @@ class FastCGIRequest: HTTPRequest {
     }
     
     func readRecordContent(record rec: FastCGIRecord, continuation: (FastCGIRecord?) -> (), callback: StatusCallback) {
-        if rec.contentLength > 0 {
-            self.connection.readBytesFully(count: Int(rec.contentLength), timeoutSeconds: fcgiTimeoutSeconds) {
-                [weak self]
-                b in
-                if let contentBytes = b {
-                    rec.content = contentBytes
-                    self?.readRecordPadding(record: rec, continuation: continuation, callback: callback)
-                } else {
-                    continuation(nil)
-                }
+        guard rec.contentLength > 0 else {
+            return self.readRecordPadding(record: rec, continuation: continuation, callback: callback)
+        }
+        self.connection.readBytesFully(count: Int(rec.contentLength), timeoutSeconds: fcgiTimeoutSeconds) {
+            [weak self]
+            b in
+            if let contentBytes = b {
+                rec.content = contentBytes
+                self?.readRecordPadding(record: rec, continuation: continuation, callback: callback)
+            } else {
+                continuation(nil)
             }
-        } else {
-            self.readRecordPadding(record: rec, continuation: continuation, callback: callback)
         }
     }
     
     func readRecordPadding(record rec: FastCGIRecord, continuation: (FastCGIRecord?) -> (), callback: StatusCallback) {
-        if rec.paddingLength > 0 {
-            self.connection.readBytesFully(count: Int(rec.paddingLength), timeoutSeconds: fcgiTimeoutSeconds) {
-                b in
-                if let paddingBytes = b {
-                    rec.padding = paddingBytes
-                    continuation(rec)
-                } else {
-                    continuation(nil)
-                }
+        guard rec.paddingLength > 0 else {
+            return continuation(rec)
+        }
+        self.connection.readBytesFully(count: Int(rec.paddingLength), timeoutSeconds: fcgiTimeoutSeconds) {
+            b in
+            if let paddingBytes = b {
+                rec.padding = paddingBytes
+                continuation(rec)
+            } else {
+                continuation(nil)
             }
-        } else {
-            continuation(rec)
         }
     }
     
     func handleRecord(_ fcgiRecord: FastCGIRecord, callback: StatusCallback) {
         switch fcgiRecord.recType {
         case fcgiBeginRequest:
+            guard let content = fcgiRecord.content else {
+                return callback(.badRequest)
+            }
             // FastCGIBeginRequestBody UInt16 role, UInt8 flags
-            let role: UInt16 = ((UInt16(fcgiRecord.content![1]) << 8) | UInt16(fcgiRecord.content![0])).netToHost
-            let flags: UInt8 = fcgiRecord.content![2]
+            let role: UInt16 = ((UInt16(content[1]) << 8) | UInt16(content[0])).netToHost
+            let flags: UInt8 = content[2]
             addHeader(.custom(name: "x-fcgi-role"), value: String(role))
             addHeader(.custom(name: "x-fcgi-flags"), value: String(flags))
             requestId = fcgiRecord.requestId
         case fcgiParams:
-            if fcgiRecord.contentLength > 0 {
-                let bytes = fcgiRecord.content!
+            if let bytes = fcgiRecord.content where fcgiRecord.contentLength > 0 {
                 var idx = 0
                 repeat {
                     // sizes are either one byte or 4
@@ -231,27 +268,27 @@ class FastCGIRequest: HTTPRequest {
                         let name = UTF8Encoding.encode(bytes: bytes[idx..<idx2])
                         let idx3 = idx2 + Int(vsz)
                         let value = UTF8Encoding.encode(bytes: bytes[idx2..<idx3])
-                        addHeader(.custom(name: name), value: value)
+                        addParam(name: name, value: value)
                         idx = idx3
                     }
                 } while idx < bytes.count
             }
         case fcgiStdin:
-            if fcgiRecord.contentLength > 0 {
-                putPostData(fcgiRecord.content!)
+            if let content = fcgiRecord.content where fcgiRecord.contentLength > 0 {
+                putPostData(content)
             } else { // done initiating the request. run with it
                 return callback(.ok)
             }
         case fcgiData:
-            if fcgiRecord.contentLength > 0 {
-                addHeader(.custom(name: "x-fcgi-data"), value: UTF8Encoding.encode(bytes: fcgiRecord.content!))
+            if let content = fcgiRecord.content where fcgiRecord.contentLength > 0 {
+                addHeader(.custom(name: "x-fcgi-data"), value: UTF8Encoding.encode(bytes: content))
             }
         case fcgiXStdin:
-            if Int(fcgiRecord.contentLength) == sizeof(UInt32.self) {
-                let one = UInt32(fcgiRecord.content![0])
-                let two = UInt32(fcgiRecord.content![1])
-                let three = UInt32(fcgiRecord.content![2])
-                let four = UInt32(fcgiRecord.content![3])
+            if let content = fcgiRecord.content where Int(fcgiRecord.contentLength) == sizeof(UInt32.self) {
+                let one = UInt32(content[0])
+                let two = UInt32(content[1])
+                let three = UInt32(content[2])
+                let four = UInt32(content[3])
                 let size = ((four << 24) + (three << 16) + (two << 8) + one).netToHost
                 readXStdin(size: Int(size), callback: callback)
                 return

@@ -20,13 +20,15 @@
 import PerfectLib
 import PerfectNet
 
-class FastCGIResponse: HTTPResponse {
+final class FastCGIResponse: HTTPResponse {
     let request: HTTPRequest
+    let requestId: UInt16
     var status: HTTPResponseStatus = .ok
     var isStreaming = false
     var bodyBytes = [UInt8]()
     var completedCallback: (() -> ())?
     var cookies = [HTTPCookie]()
+    var wroteHeaders = false
     var headerStore = Array<(HTTPResponseHeader.Name, String)>()
     var headers: AnyIterator<(HTTPResponseHeader.Name, String)> {
         var g = self.headerStore.makeIterator()
@@ -40,12 +42,21 @@ class FastCGIResponse: HTTPResponse {
     
     init(request: FastCGIRequest) {
         self.request = request
+        self.requestId = request.requestId
         let net = request.connection
         self.completedCallback = {
-            let finalBytes = self.makeEndRequestBody(requestId: Int(request.requestId), appStatus: self.status.code, protocolStatus: fcgiRequestComplete)
-            net.write(bytes: finalBytes) {
-                _ in
-                net.close()
+            self.completedCallback = nil
+            self.push {
+                ok in
+                guard ok else {
+                    net.close()
+                    return
+                }
+                let finalBytes = self.makeEndRequestBody(requestId: Int(request.requestId), appStatus: self.status.code, protocolStatus: fcgiRequestComplete)
+                net.write(bytes: finalBytes) {
+                    _ in
+                    net.close()
+                }
             }
         }
     }
@@ -99,8 +110,39 @@ class FastCGIResponse: HTTPResponse {
         bodyBytes = [UInt8](string.utf8)
     }
     
+    func pushHeaders(callback: (Bool) -> ()) {
+        wroteHeaders = true
+        addCookies()
+        var responseString = "Status: \(status)\r\n"
+        for (n, v) in headers {
+            responseString.append("\(n.standardName): \(v)\r\n")
+        }
+        responseString.append("\r\n")
+        let bytes = makeStdoutBody(requestId: Int(), data: [UInt8](responseString.utf8))
+        connection.write(bytes: bytes) {
+            _ in
+            self.pushBody(callback: callback)
+        }
+    }
+    
+    func pushBody(callback: (Bool) -> ()) {
+        guard !bodyBytes.isEmpty else {
+            return callback(true)
+        }
+        let bytes = makeStdoutBody(requestId: Int(requestId), data: bodyBytes)
+        connection.write(bytes: bytes) {
+            wrote in
+            self.bodyBytes.removeAll()
+            callback(wrote == bytes.count)
+        }
+    }
+    
     func push(callback: (Bool) -> ()) {
-        
+        if !wroteHeaders {
+            pushHeaders(callback: callback)
+        } else {
+            pushBody(callback: callback)
+        }
     }
     
     func addCookies() {
@@ -149,7 +191,6 @@ class FastCGIResponse: HTTPResponse {
     }
 
     func makeEndRequestBody(requestId rid: Int, appStatus: Int, protocolStatus: Int) -> [UInt8] {
-        
         let b = Bytes()
         b.import8Bits(from: fcgiVersion1)
             .import8Bits(from: fcgiEndRequest)
@@ -162,7 +203,37 @@ class FastCGIResponse: HTTPResponse {
             .import8Bits(from: 0)
             .import8Bits(from: 0)
             .import8Bits(from: 0)
-        
         return b.data
+    }
+    
+    func makeStdoutBody(requestId rid: Int, data: [UInt8], firstPos: Int, count: Int) -> [UInt8] {
+        let b = Bytes()
+        if count > fcgiBodyChunkSize {
+            b.importBytes(from: makeStdoutBody(requestId: rid, data: data, firstPos: firstPos, count: fcgiBodyChunkSize))
+                .importBytes(from: makeStdoutBody(requestId: rid, data: data, firstPos: fcgiBodyChunkSize + firstPos, count: count - fcgiBodyChunkSize))
+        } else {
+            let padBytes = count % 8
+            b.import8Bits(from: fcgiVersion1)
+                .import8Bits(from: fcgiStdout)
+                .import16Bits(from: UInt16(rid).hostToNet)
+                .import16Bits(from: UInt16(count).hostToNet)
+                .import8Bits(from: UInt8(padBytes))
+                .import8Bits(from: 0)
+            if firstPos == 0 && count == data.count {
+                b.importBytes(from: data)
+            } else {
+                b.importBytes(from: data[firstPos..<count])
+            }
+            if padBytes > 0 {
+                for _ in 1...padBytes {
+                    b.import8Bits(from: 0)
+                }
+            }
+        }
+        return b.data
+    }
+    
+    func makeStdoutBody(requestId rid: Int, data: [UInt8]) -> [UInt8] {
+        return makeStdoutBody(requestId: rid, data: data, firstPos: 0, count: data.count)
     }
 }

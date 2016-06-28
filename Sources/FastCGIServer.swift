@@ -77,17 +77,12 @@ public class FastCGIServer {
 		try pipe.bind(address: name)
 		pipe.listen()
 		chmod(name, mode_t(S_IRWXU|S_IRWXO|S_IRWXG))
-        
         if let runAs = self.runAsUser {
             try PerfectServer.switchTo(userName: runAs)
         }
-		
         self.net = pipe
-
 		defer { pipe.close() }
-
 		print("Starting FastCGI server on named pipe "+name)
-
 		self.start()
 	}
 
