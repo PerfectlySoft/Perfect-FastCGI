@@ -20,6 +20,7 @@
 import PerfectNet
 import PerfectThread
 import PerfectLib
+import PerfectHTTP
 
 #if os(Linux)
 import SwiftGlibc

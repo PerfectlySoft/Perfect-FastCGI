@@ -19,6 +19,7 @@
 
 import PerfectLib
 import PerfectNet
+import PerfectHTTP
 
 final class FastCGIRequest: HTTPRequest {
     
