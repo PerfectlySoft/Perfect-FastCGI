@@ -1,6 +1,8 @@
 # Perfect-FastCGI
 FastCGI server for Perfect
 
+[![GitHub version](https://badge.fury.io/gh/PerfectlySoft%2FPerfect-FastCGI.svg)](https://badge.fury.io/gh/PerfectlySoft%2FPerfect-FastCGI)
+
 Perfect server can run with either its built-in HTTP 1.1 system or with this FastCGI based server.
 
 This server can run with any FastCGI enabled webserver over either UNIX socket files or TCP.
