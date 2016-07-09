@@ -28,7 +28,6 @@ final class FastCGIResponse: HTTPResponse {
     var isStreaming = false
     var bodyBytes = [UInt8]()
     var completedCallback: (() -> ())?
-    var cookies = [HTTPCookie]()
     var wroteHeaders = false
     var headerStore = Array<(HTTPResponseHeader.Name, String)>()
     var headers: AnyIterator<(HTTPResponseHeader.Name, String)> {
@@ -68,10 +67,6 @@ final class FastCGIResponse: HTTPResponse {
         }
     }
     
-    func addCookie(_ cookie: HTTPCookie) {
-        cookies.append(cookie)
-    }
-    
     func header(_ named: HTTPResponseHeader.Name) -> String? {
         for (n, v) in headerStore where n == named {
             return v
@@ -98,22 +93,8 @@ final class FastCGIResponse: HTTPResponse {
         addHeader(name, value: value)
     }
     
-    func appendBody(bytes: [UInt8]) {
-        bodyBytes.append(contentsOf: bytes)
-    }
-    
-    func appendBody(string: String) {
-        bodyBytes.append(contentsOf: [UInt8](string.utf8))
-    }
-    
-    func setBody(json: [String:Any]) throws {
-        let string = try json.jsonEncodedString()
-        bodyBytes = [UInt8](string.utf8)
-    }
-    
     func pushHeaders(callback: (Bool) -> ()) {
         wroteHeaders = true
-        addCookies()
         var responseString = "Status: \(status)\r\n"
         for (n, v) in headers {
             responseString.append("\(n.standardName): \(v)\r\n")
@@ -144,51 +125,6 @@ final class FastCGIResponse: HTTPResponse {
         } else {
             pushBody(callback: callback)
         }
-    }
-    
-    func addCookies() {
-        for cookie in self.cookies {
-            var cookieLine = ""
-            cookieLine.append(cookie.name!.stringByEncodingURL)
-            cookieLine.append("=")
-            cookieLine.append(cookie.value!.stringByEncodingURL)
-            
-            if let expires = cookie.expires {
-                switch expires {
-                case .session: ()
-                case .absoluteDate(let date):
-                    cookieLine.append(";expires=" + date)
-                case .absoluteSeconds(let seconds):
-                    let formattedDate = try! formatDate(secondsToICUDate(seconds*60),
-                                                        format: "%a, %d-%b-%Y %T GMT",
-                                                        timezone: "GMT")
-                    cookieLine.append(";expires=" + formattedDate)
-                case .relativeSeconds(let seconds):
-                    let formattedDate = try! formatDate(getNow() + secondsToICUDate(seconds*60),
-                                                        format: "%a, %d-%b-%Y %T GMT",
-                                                        timezone: "GMT")
-                    cookieLine.append(";expires=" + formattedDate)
-                }
-            }
-            if let path = cookie.path {
-                cookieLine.append("; path=" + path)
-            }
-            if let domain = cookie.domain {
-                cookieLine.append("; domain=" + domain)
-            }
-            if let secure = cookie.secure {
-                if secure == true {
-                    cookieLine.append("; secure")
-                }
-            }
-            if let httpOnly = cookie.httpOnly {
-                if httpOnly == true {
-                    cookieLine.append("; HttpOnly")
-                }
-            }
-            addHeader(.setCookie, value: cookieLine)
-        }
-        self.cookies.removeAll()
     }
 
     func makeEndRequestBody(requestId rid: Int, appStatus: Int, protocolStatus: Int) -> [UInt8] {
