@@ -24,6 +24,11 @@ import PerfectHTTP
 
 #if os(Linux)
 import SwiftGlibc
+let S_IRGRP = (S_IRUSR >> 3)
+let S_IWGRP	= (S_IWUSR >> 3)
+let S_IRWXU = (__S_IREAD|__S_IWRITE|__S_IEXEC)
+let S_IRWXG = (S_IRWXU >> 3)
+let S_IRWXO = (S_IRWXG >> 3)
 #else
 import Darwin
 #endif
@@ -42,7 +47,7 @@ let fcgiBaseRecordSize =        8
 let fcgiBodyChunkSize =         0xFFFF
 
 class FastCGIRecord {
-    
+
     var version: UInt8 = 0
     var recType: UInt8 = 0
     var requestId: UInt16 = 0
