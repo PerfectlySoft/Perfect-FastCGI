@@ -66,10 +66,19 @@ public class FastCGIServer {
     private var net: NetTCP?
     /// Switch to user after binding socket file
     public var runAsUser: String?
-
+	
+	/// Routing support
+	private var routes = Routes()
+	private var routeNavigator: RouteNavigator?
+	
 	/// Empty public initializer
 	public init() {
 
+	}
+	
+	/// Add the Routes to this server.
+	public func addRoutes(_ routes: Routes) {
+		self.routes.add(routes: routes)
 	}
 
 	/// Start the server on the indicated named pipe
@@ -133,6 +142,13 @@ public class FastCGIServer {
 
 	func runRequest(_ request: FastCGIRequest) {
 		let response = FastCGIResponse(request: request)
-        Routing.handleRequest(request, response: response)
+		let pathInfo = request.path
+		if let nav = self.routeNavigator, handler = nav.findHandler(uri: pathInfo, webRequest: request) {
+			handler(request, response)
+		} else {
+			response.status = .notFound
+			response.appendBody(string: "The file \(pathInfo) was not found.")
+			response.completed()
+		}
 	}
 }
