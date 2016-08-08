@@ -93,7 +93,7 @@ final class FastCGIResponse: HTTPResponse {
         addHeader(name, value: value)
     }
     
-    func pushHeaders(callback: (Bool) -> ()) {
+    func pushHeaders(callback: @escaping (Bool) -> ()) {
         wroteHeaders = true
         var responseString = "Status: \(status)\r\n"
         for (n, v) in headers {
@@ -107,7 +107,7 @@ final class FastCGIResponse: HTTPResponse {
         }
     }
     
-    func pushBody(callback: (Bool) -> ()) {
+    func pushBody(callback: @escaping (Bool) -> ()) {
         guard !bodyBytes.isEmpty else {
             return callback(true)
         }
@@ -119,7 +119,7 @@ final class FastCGIResponse: HTTPResponse {
         }
     }
     
-    func push(callback: (Bool) -> ()) {
+    func push(callback: @escaping (Bool) -> ()) {
         if !wroteHeaders {
             pushHeaders(callback: callback)
         } else {

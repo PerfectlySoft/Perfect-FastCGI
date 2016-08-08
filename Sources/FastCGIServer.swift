@@ -143,7 +143,7 @@ public class FastCGIServer {
 	func runRequest(_ request: FastCGIRequest) {
 		let response = FastCGIResponse(request: request)
 		let pathInfo = request.path
-		if let nav = self.routeNavigator, handler = nav.findHandler(uri: pathInfo, webRequest: request) {
+		if let nav = self.routeNavigator, let handler = nav.findHandler(uri: pathInfo, webRequest: request) {
 			handler(request, response)
 		} else {
 			response.status = .notFound
