@@ -1,5 +1,5 @@
 import XCTest
-@testable import PerfectFastCGITestSuite
+@testable import PerfectFastCGITests
 
 XCTMain([
      testCase(PerfectFastCGITests.allTests),
