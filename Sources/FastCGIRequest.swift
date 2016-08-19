@@ -166,7 +166,7 @@ final class FastCGIRequest: HTTPRequest {
         }
     }
     
-    func readRequest(callback: StatusCallback) {
+    func readRequest(callback: @escaping StatusCallback) {
         self.readRecord(continuation: {
             record in
             guard let record = record else {
@@ -176,7 +176,7 @@ final class FastCGIRequest: HTTPRequest {
         }, callback: callback)
     }
 
-    func readRecord(continuation: @escaping (FastCGIRecord?) -> (), callback: StatusCallback) {
+    func readRecord(continuation: @escaping (FastCGIRecord?) -> (), callback: @escaping StatusCallback) {
         self.connection.readBytesFully(count: fcgiBaseRecordSize, timeoutSeconds: fcgiTimeoutSeconds) {
             [weak self]
             b in
@@ -194,7 +194,7 @@ final class FastCGIRequest: HTTPRequest {
         }
     }
     
-    func readRecordContent(record rec: FastCGIRecord, continuation: @escaping (FastCGIRecord?) -> (), callback: StatusCallback) {
+    func readRecordContent(record rec: FastCGIRecord, continuation: @escaping (FastCGIRecord?) -> (), callback: @escaping StatusCallback) {
         guard rec.contentLength > 0 else {
             return self.readRecordPadding(record: rec, continuation: continuation, callback: callback)
         }
@@ -225,7 +225,7 @@ final class FastCGIRequest: HTTPRequest {
         }
     }
     
-    func handleRecord(_ fcgiRecord: FastCGIRecord, callback: StatusCallback) {
+    func handleRecord(_ fcgiRecord: FastCGIRecord, callback: @escaping StatusCallback) {
         switch fcgiRecord.recType {
         case fcgiBeginRequest:
             guard let content = fcgiRecord.content else {
@@ -301,7 +301,7 @@ final class FastCGIRequest: HTTPRequest {
         readRequest(callback: callback)
     }
     
-    func readXStdin(size: Int, callback: StatusCallback) {
+    func readXStdin(size: Int, callback: @escaping StatusCallback) {
         connection.readSomeBytes(count: size) {
             [weak self]
             b in
