@@ -1,5 +1,4 @@
 # Perfect-FastCGI
-FastCGI server for Perfect
 
 [![Perfect logo](http://www.perfect.org/github/Perfect_GH_header_854.jpg)](http://perfect.org/get-involved.html)
 
