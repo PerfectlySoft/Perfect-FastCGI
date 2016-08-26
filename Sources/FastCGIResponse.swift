@@ -100,7 +100,7 @@ final class FastCGIResponse: HTTPResponse {
             responseString.append("\(n.standardName): \(v)\r\n")
         }
         responseString.append("\r\n")
-        let bytes = makeStdoutBody(requestId: Int(), data: [UInt8](responseString.utf8))
+        let bytes = makeStdoutBody(requestId: Int(requestId), data: [UInt8](responseString.utf8))
         connection.write(bytes: bytes) {
             _ in
             self.pushBody(callback: callback)
