@@ -113,6 +113,8 @@ public class FastCGIServer {
 	}
 
 	func start() {
+		self.routeNavigator = self.routes.navigator
+
 		guard let n = self.net else {
             return
         }
