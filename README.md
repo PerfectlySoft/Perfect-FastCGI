@@ -49,5 +49,5 @@ Get started with a FastCGI based project template:
 Add this package as a dependency:
 
 ```swift
-.Package(url:"https://github.com/PerfectlySoft/Perfect-FastCGI.git", versions: Version(0,0,0)..<Version(10,0,0))
+.Package(url:"https://github.com/PerfectlySoft/Perfect-FastCGI.git", majorVersion: 2, minor: 0)
 ```
