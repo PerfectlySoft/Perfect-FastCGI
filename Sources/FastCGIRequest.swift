@@ -35,7 +35,8 @@ final class FastCGIRequest: HTTPRequest {
     var serverName = ""
     var documentRoot = "./webroot"
     let connection: NetTCP
-    var urlVariables = [String:String]()
+	var urlVariables = [String:String]()
+	var scratchPad = [String:Any]()
     var mimes: MimeReader?
     var workingBuffer = [UInt8]()
     
