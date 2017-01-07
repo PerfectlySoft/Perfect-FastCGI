@@ -78,7 +78,7 @@ public class FastCGIServer {
 	
 	/// Add the Routes to this server.
 	public func addRoutes(_ routes: Routes) {
-		self.routes.add(routes: routes)
+		self.routes.add(routes)
 	}
 
 	/// Start the server on the indicated named pipe
