@@ -78,7 +78,7 @@ public class FastCGIServer {
 	
 	/// Add the Routes to this server.
 	public func addRoutes(_ routes: Routes) {
-		self.routes.add(routes: routes)
+		self.routes.add(routes)
 	}
 
 	/// Start the server on the indicated named pipe
@@ -88,7 +88,6 @@ public class FastCGIServer {
 			unlink(name)
 		}
 		let pipe = NetNamedPipe()
-		pipe.initSocket()
 		try pipe.bind(address: name)
 		pipe.listen()
 		chmod(name, mode_t(S_IRWXU|S_IRWXO|S_IRWXG))
@@ -104,7 +103,6 @@ public class FastCGIServer {
 	/// Start the server on the indicated TCP port and optional address
 	public func start(port prt: UInt16, bindAddress: String = "0.0.0.0") throws {
 		let socket = NetTCP()
-		socket.initSocket()
 		try socket.bind(port: prt, address: bindAddress)
 		socket.listen()
 		defer { socket.close() }

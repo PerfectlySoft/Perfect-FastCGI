@@ -74,11 +74,12 @@ final class FastCGIResponse: HTTPResponse {
         return nil
     }
     
-    func addHeader(_ name: HTTPResponseHeader.Name, value: String) {
+    func addHeader(_ name: HTTPResponseHeader.Name, value: String) -> Self {
         headerStore.append((name, value))
+		return self
     }
     
-    func setHeader(_ name: HTTPResponseHeader.Name, value: String) {
+    func setHeader(_ name: HTTPResponseHeader.Name, value: String) -> Self {
         var fi = [Int]()
         for i in 0..<headerStore.count {
             let (n, _) = headerStore[i]
@@ -90,7 +91,7 @@ final class FastCGIResponse: HTTPResponse {
         for i in fi {
             headerStore.remove(at: i)
         }
-        addHeader(name, value: value)
+        return addHeader(name, value: value)
     }
     
     func pushHeaders(callback: @escaping (Bool) -> ()) {
