@@ -159,7 +159,7 @@ final class FastCGIResponse: HTTPResponse {
             if firstPos == 0 && count == data.count {
                 b.importBytes(from: data)
             } else {
-                b.importBytes(from: data[firstPos..<count])
+                b.importBytes(from: data[firstPos..<(firstPos+count)])
             }
             if padBytes > 0 {
                 for _ in 1...padBytes {
