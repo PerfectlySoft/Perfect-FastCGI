@@ -101,7 +101,7 @@ final class FastCGIResponse: HTTPResponse {
             responseString.append("\(n.standardName): \(v)\r\n")
         }
         responseString.append("\r\n")
-        let bytes = makeStdoutBody(requestId: Int(), data: [UInt8](responseString.utf8))
+        let bytes = makeStdoutBody(requestId: Int(requestId), data: [UInt8](responseString.utf8))
         connection.write(bytes: bytes) {
             _ in
             self.pushBody(callback: callback)
@@ -160,7 +160,7 @@ final class FastCGIResponse: HTTPResponse {
             if firstPos == 0 && count == data.count {
                 b.importBytes(from: data)
             } else {
-                b.importBytes(from: data[firstPos..<count])
+                b.importBytes(from: data[firstPos..<(firstPos+count)])
             }
             if padBytes > 0 {
                 for _ in 1...padBytes {
