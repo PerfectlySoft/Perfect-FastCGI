@@ -28,6 +28,7 @@ final class FastCGIRequest: HTTPRequest {
     
     var method = HTTPMethod.get
     var path = ""
+	var pathComponents = [String]()
     var queryString = ""
     var protocolVersion = (1, 0)
     var remoteAddress = (host: "", port: 0 as UInt16)
