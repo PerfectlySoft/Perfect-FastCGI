@@ -141,14 +141,15 @@ public class FastCGIServer {
 	}
 
 	func runRequest(_ request: FastCGIRequest) {
-		let response = FastCGIResponse(request: request)
-		let pathInfo = request.path
-		if let nav = self.routeNavigator, let handler = nav.findHandler(uri: pathInfo, webRequest: request) {
-			handler(request, response)
+		let resp = FastCGIResponse(request: request)
+		if let nav = routeNavigator,
+			let handlers = nav.findHandlers(pathComponents: request.pathComponents, webRequest: request) {
+			resp.handlers = handlers.makeIterator()
+			resp.next()
 		} else {
-			response.status = .notFound
-			response.appendBody(string: "The file \(pathInfo) was not found.")
-			response.completed()
+			resp.status = .notFound
+			resp.appendBody(string: "The file \(request.path) was not found.")
+			resp.completed()
 		}
 	}
 }

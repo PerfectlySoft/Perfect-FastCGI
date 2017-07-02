@@ -22,5 +22,7 @@ import PackageDescription
 let package = Package(
     name: "PerfectFastCGI",
     targets: [],
-    dependencies: [.Package(url: "https://github.com/PerfectlySoft/Perfect-HTTP.git", majorVersion: 2)]
+    dependencies: [
+		.Package(url: "https://github.com/PerfectlySoft/Perfect-HTTP.git", versions: Version(2, 2, 2)..<Version(3, 0, 0))
+	]
 )

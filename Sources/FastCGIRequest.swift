@@ -22,12 +22,12 @@ import PerfectNet
 import PerfectHTTP
 
 final class FastCGIRequest: HTTPRequest {
-    
     var requestId: UInt16 = 0
     var lastRecordType: UInt8 = 0
     
     var method = HTTPMethod.get
     var path = ""
+	var pathComponents: [String] { return path.filePathComponents }
     var queryString = ""
     var protocolVersion = (1, 0)
     var remoteAddress = (host: "", port: 0 as UInt16)
@@ -266,7 +266,7 @@ final class FastCGIRequest: HTTPRequest {
                         idx += 1
                     }
                     if sz > 0 {
-                        let idx2 = Int(idx + sz)
+                        let idx2 = idx + Int(sz)
                         let name = UTF8Encoding.encode(bytes: bytes[idx..<idx2])
                         let idx3 = idx2 + Int(vsz)
                         let value = UTF8Encoding.encode(bytes: bytes[idx2..<idx3])

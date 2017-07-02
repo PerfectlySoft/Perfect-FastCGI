@@ -22,6 +22,7 @@ import PerfectNet
 import PerfectHTTP
 
 final class FastCGIResponse: HTTPResponse {
+	
     let request: HTTPRequest
     let requestId: UInt16
     var status: HTTPResponseStatus = .ok
@@ -36,10 +37,13 @@ final class FastCGIResponse: HTTPResponse {
             g.next()
         }
     }
-    var connection: NetTCP {
+	
+	var connection: NetTCP {
         return request.connection
     }
-    
+	
+	var handlers: IndexingIterator<[RequestHandler]>?
+	
     init(request: FastCGIRequest) {
         self.request = request
         self.requestId = request.requestId
@@ -66,7 +70,15 @@ final class FastCGIResponse: HTTPResponse {
             cb()
         }
     }
-    
+	
+	func next() {
+		if let n = handlers?.next() {
+			n(request, self)
+		} else {
+			completed()
+		}
+	}
+	
     func header(_ named: HTTPResponseHeader.Name) -> String? {
         for (n, v) in headerStore where n == named {
             return v
