@@ -105,6 +105,7 @@ public class FastCGIServer {
 		let socket = NetTCP()
 		try socket.bind(port: prt, address: bindAddress)
 		socket.listen()
+		self.net = socket
 		defer { socket.close() }
 		print("Starting FastCGi server on \(bindAddress):\(prt)")
 		self.start()
