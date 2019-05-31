@@ -1,4 +1,4 @@
-//
+// swift-tools-version:4.1
 //  Package.swift
 //  PerfectFastCGI
 //
@@ -21,8 +21,13 @@ import PackageDescription
 
 let package = Package(
     name: "PerfectFastCGI",
-    targets: [],
+	products: [
+		.library(name: "PerfectFastCGI", targets: ["PerfectFastCGI"])
+	],
     dependencies: [
-		.Package(url: "https://github.com/PerfectlySoft/Perfect-HTTP.git", versions: Version(2, 2, 2)..<Version(3, 0, 0))
+		.package(url: "https://github.com/PerfectlySoft/Perfect-HTTP.git", from: "3.0.0")
+	],
+	targets: [
+		.target(name: "PerfectFastCGI", dependencies: ["PerfectHTTP"])
 	]
 )
